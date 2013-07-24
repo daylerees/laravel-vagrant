@@ -1,0 +1,12 @@
+---
+- name: install php-fpm
+  apt: pkg={{ item }} state=latest update_cache=yes
+  with_items:
+  - php5-fpm
+  - php5-common
+  - php5-curl
+  - php5-mysql
+  - php5-mcrypt
+  - php5-xdebug
+  notify:
+  - restart php-fpm

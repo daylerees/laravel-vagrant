@@ -1,0 +1,9 @@
+---
+- name: install nginx
+  apt: pkg=nginx state=latest update_cache=yes
+  notify:
+  - restart nginx
+- name: write nginx configuration
+  copy: src=../../conf/server.conf dest=/etc/nginx/sites-enabled/server.conf owner=www-data group=www-data mode=0755
+  notify:
+  - restart nginx
