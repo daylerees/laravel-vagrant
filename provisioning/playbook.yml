@@ -1,0 +1,11 @@
+---
+- hosts: laravel
+  sudo: yes
+  tasks:
+  - include: playbooks/nginx/playbook.yml
+  - include: playbooks/php-fpm/playbook.yml
+  - include: playbooks/mysql/playbook.yml
+  handlers:
+  - include: playbooks/nginx/handlers.yml
+  - include: playbooks/php-fpm/handlers.yml
+  - include: playbooks/mysql/handlers.yml
