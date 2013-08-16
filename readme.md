@@ -16,6 +16,6 @@ Grats, you are prepped for Vagrant with Ansible provisioning!
 - Download a fresh copy of the Laravel framework, and extract it on top of laravel-vagrant.
 - Navigate to your laravel-vagrant directory with your terminal and run `vagrant up`.
 
-That's it! If everything's working fine you should be able to visit [http://localhost:8080](http://localhost:8080) and be greeted with the Laravel welcome page.
+That's it! If everything is working you should be able to visit [http://localhost:8080](http://localhost:8080) and be greeted with the Laravel welcome page.
 
 Enjoy!
