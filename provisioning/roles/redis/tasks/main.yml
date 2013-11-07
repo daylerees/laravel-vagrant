@@ -1,0 +1,14 @@
+---
+- name: Ensure required PPAs are present
+  apt_repository: repo='$item' update_cache=yes
+  with_items:
+    - 'ppa:rwky/redis'
+
+- name: Ensure required packages are installed
+  apt: pkg='$item' state=present
+  with_items:
+    - redis-server
+
+- name: Ensure latest redis confg is in place
+  template: src=redis.conf.j2 dest=/etc/redis/redis.conf
+  notify: restart redis

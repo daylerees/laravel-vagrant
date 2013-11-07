@@ -1,0 +1,51 @@
+---
+# Part: PHP
+# File: pecl.yml
+#
+# Description: Manage Pecl package installations
+#   Supposes the config template file php/templates/${package}.ini.j2 exists
+#
+# Parameters:
+# - $package : the package to install
+# - $version : stable, beta, alpha
+# - $stdin : input to send to the install process.
+#
+# Dependencies ([part:]type:filename):
+# - tasks:setup.yml
+#
+# OS familly: Ubuntu (>= 12.04)
+
+- name: Ensure PHP development packages are installed
+  apt: pkg=$item state=installed
+  with_items:
+    - php5-dev
+    - php-pear
+    - make
+
+- name: Test for previous "$package" install
+  shell:  pecl list | grep -i '$package'
+  register: php_package_exists
+  ignore_errors: True
+
+- name: Install ${package}-${version}
+  shell: echo $stdin | pecl install ${package}-${version}
+  when: php_package_exists|failed
+  notify: restart php-fpm
+
+- name: Set $package config
+  template:
+    src=mods-available/${package}.ini.j2
+    dest=/etc/php5/mods-available/${package}.ini
+    owner=root group=root mode=0644
+
+- name: Set symbolic link to $package config
+  file:
+    src=/etc/php5/mods-available/${package}.ini
+    dest=/etc/php5/fpm/conf.d/20-${package}.ini
+    owner=root group=root state=link
+
+- name: Set symbolic link to $package config
+  file:
+    src=/etc/php5/mods-available/${package}.ini
+    dest=/etc/php5/cli/conf.d/20-${package}.ini
+    owner=root group=root state=link

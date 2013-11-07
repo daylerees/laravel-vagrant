@@ -1,0 +1,44 @@
+---
+- name: Ensure Percona apt-key is present
+  apt_key: url=http://www.percona.com/redir/downloads/RPM-GPG-KEY-percona state=present
+
+- name: Ensure required repos are present
+  apt_repository: repo='$item' update_cache=yes
+  with_items:
+    - 'deb http://repo.percona.com/apt precise main'
+    - 'deb-src http://repo.percona.com/apt precise main'
+
+- name: Ensure required packages are installed
+  apt: pkg='$item' state=present
+  with_items:
+    - percona-server-server-${mysql_version}
+    - python-mysqldb # used by mysql* ansible's modules
+
+
+# Secure MySQL setup
+- name: update mysql root password for all root accounts
+  mysql_user: name=root host=$item check_implicit_admin=yes password=$mysql_root_password login_user=root login_password=$mysql_root_password
+  with_items:
+    - $ansible_hostname
+    - 127.0.0.1
+    - ::1
+    - localhost
+
+- name: ensure anonymous users are not in the database
+  mysql_user: name='' host=$item state=absent login_user=root login_password=$mysql_root_password
+  with_items:
+    - localhost
+    - $inventory_hostname
+
+- name: remove the test database
+  mysql_db: name=test state=absent login_user=root login_password=$mysql_root_password
+
+
+# Users and DBs setup
+- name: Ensure {{ item['name'] }} DB is present
+  mysql_db: name={{ item['name'] }} collation=utf8_unicode_ci encoding=utf8 state=present login_user=root login_password=$mysql_root_password
+  with_items: $mysql_users
+
+- name: Ensure {{ item['name'] }} mysql user is present
+  mysql_user: name='{{ item['name'] }}' password={{ item['password'] }} host=localhost state=present login_user=root login_password=$mysql_root_password priv='{{ item['name'] }}.*:ALL'
+  with_items: $mysql_users

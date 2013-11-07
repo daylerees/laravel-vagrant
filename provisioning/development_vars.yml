@@ -1,0 +1,12 @@
+---
+vhost_domain: laravel.vagrant
+project_name: laravel
+dev: true
+
+users:
+  - aran
+
+mysql_version: '5.5'
+mysql_root_password: somepass
+mysql_users:
+  - {name: aran, password: somepass}

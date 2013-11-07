@@ -1,0 +1,42 @@
+- name: Ensure nginx's repo key is present
+  apt_key: url=http://nginx.org/keys/nginx_signing.key state=present
+
+- name: Ensure required PPAs are present
+  apt_repository: repo='$item' update_cache=yes
+  with_items:
+    - 'deb http://nginx.org/packages/ubuntu/ precise nginx'
+    - 'deb-src http://nginx.org/packages/ubuntu/ precise nginx'
+
+- name: Ensure required packages are installed
+  apt: pkg='$item' state=present
+  with_items:
+    - nginx
+
+- name: Ensure nginx sites* dirs are present
+  file: path=/etc/nginx/$item state=directory
+  with_items:
+    - 'sites-available'
+    - 'sites-enabled'
+
+- name: Ensure default nginx conf.d directory is deleted
+  file: path=/etc/nginx/conf.d state=absent
+
+- name: Ensure nginx configuration file is at the latest version.
+  copy: src='$item' dest=/etc/nginx/
+  with_items:
+    - nginx.conf
+    - fastcgi_params
+  notify:
+    - check nginx conf
+    - reload nginx
+
+- name: Ensure nginx vhosts are at the latest version.
+  template: src='$item' dest=/etc/nginx/sites-enabled/
+  with_fileglob:
+    - ../templates/sites-enabled/*
+  notify:
+    - check nginx conf
+    - reload nginx
+
+- name: Ensure nginx is started
+  service: name=nginx state=started enabled=yes

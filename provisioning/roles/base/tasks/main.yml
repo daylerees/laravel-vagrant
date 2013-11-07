@@ -1,0 +1,20 @@
+- name: Update apt cache
+  apt: update_cache=yes
+
+- name: Ensure all system packages are at the latest version
+  apt: upgrade=dist
+
+- name: Ensure $item user is present
+  user: name=$item generate_ssh_key=yes
+  with_items: $users
+
+- name: install packages
+  apt: pkg=$item state=latest
+  sudo: yes
+  with_items:
+   - build-essential
+   - python-software-properties
+   - ntp
+   - curl
+   - git
+   - vim

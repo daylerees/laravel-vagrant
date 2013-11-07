@@ -1,0 +1,5 @@
+- name: check nginx conf
+  command: nginx -t
+
+- name: reload nginx
+  service: name=nginx state=reloaded

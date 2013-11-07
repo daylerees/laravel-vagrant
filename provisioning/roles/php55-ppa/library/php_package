@@ -1,0 +1,171 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# (c) 2013, Johan Wiren <johan.wiren.se@gmail.com>
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+DOCUMENTATION = '''
+---
+module: php_package
+short_description: Manage PECL and PEAR packages
+description: 
+  - Manage installation and uninstallation of PECL and PEAR packages.
+version_added: "1.4"
+options:
+  mode:
+    description:
+      - Choose PECL or PEAR
+    required: true
+    choices: [pecl, pear]
+  name:
+    description:
+      - The name of the PECL or PEAR package to be installed.
+    required: true
+  state:
+    description: 
+      - The desired state of the package. C(latest) ensures that the latest version is installed.
+    required: true
+    choices: [present, absent, latest]
+  version:
+    description:
+      - Version of the package to be installed/removed.
+    required: false
+author: Andrea Usuelli
+'''
+
+EXAMPLES = '''
+# Installs the latest stable version of phpredis.
+- php_package: mode=pecl name=redis version=2.2.4 state=present
+'''
+
+import re
+
+def get_pecl_version(module):
+
+    cmd = [module.get_bin_path(module.params['mode'], True), 'version']
+    (rc, out, err) = module.run_command(cmd, check_rc=True)
+
+    match = re.match(r'PEAR Version:\s(\d+)\.(\d+)\.(\d+)', out)
+    if not match:
+        return None
+
+    return tuple(int(x) for x in match.groups())
+
+def get_installed_version(module):
+
+    cmd = [ module.get_bin_path(module.params['mode'], True) ]
+    cmd.append('list')
+    (rc, out, err) = module.run_command(cmd, check_rc=True)
+
+    if rc != 0:
+        module.fail_json(msg=err)
+
+    for line in out.splitlines():
+        match_string = re.escape(module.params['name']) + "\s+(.*)\s+"
+        match = re.match(match_string, line)
+        if match:
+            return match.group(1)
+    return False
+
+def exists(module):
+
+    installed_version = get_installed_version(module)
+    if module.params['version']:
+        if module.params['version'] == installed_version:
+            return True
+    elif module.params['state'] == 'latest':
+        return False
+    else:
+        if installed_version:
+            return True
+    return False
+
+def uninstall(module):
+
+    if module.check_mode:
+        return
+    cmd = [ module.get_bin_path(module.params['mode'], True) ]
+    cmd.append('uninstall')
+    cmd.append(module.params['name'])
+    return module.run_command(cmd, check_rc=True)
+
+
+def install(module):
+    if module.check_mode:
+        return
+
+    cmd = [ module.get_bin_path(module.params['mode'], True) ]
+    cmd.append('install')
+
+    if module.params['version']:
+        cmd.append(module.params['name'] + '-' + module.params['version'])
+    else:
+        cmd.append(module.params['name'])
+
+    return module.run_command(cmd, check_rc=True)
+
+def main():
+
+    module = AnsibleModule(
+        argument_spec = dict(
+            mode                 = dict(required=True, choices=['pecl', 'pear'], type='str'),
+            name                 = dict(required=True, type='str'),
+            state                = dict(required=False, choices=['present','absent','latest'], type='str'),
+            version              = dict(required=False, type='str'),
+        ),
+        supports_check_mode = True
+    )
+
+    # if module.params['version'] and module.params['state'] == 'latest':
+    #     module.fail_json(msg="Cannot specify version when state=latest")
+    # if module.params['gem_source'] and module.params['state'] == 'latest':
+    #     module.fail_json(msg="Cannot maintain state=latest when installing from local source")
+
+    # if not module.params['gem_source']:
+    #     module.params['gem_source'] = module.params['name']
+
+    changed = False
+
+    rc = False
+    out = False
+    err = False
+
+    if module.params['state'] in [ 'present', 'latest']:
+        if not exists(module):
+            (rc, out, err) = install(module)
+            changed = True
+    elif module.params['state'] == 'absent':
+        if exists(module):
+            (rc, out, err) = uninstall(module)
+            changed = True
+
+    if rc != 0:
+        module.fail_json(msg=err)
+
+    result = {}
+    result['name'] = module.params['name']
+    result['state'] = module.params['state']
+    if module.params['version']:
+        result['version'] = module.params['version']
+    result['changed'] = changed
+
+    module.exit_json(**result)
+
+# include magic from lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+main()

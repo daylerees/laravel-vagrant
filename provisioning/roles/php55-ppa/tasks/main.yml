@@ -1,0 +1,73 @@
+- name: Ensure required PPAs are present
+  apt_repository: repo='$item' update_cache=yes
+  with_items:
+    - 'ppa:ondrej/php5'
+
+- name: Ensure required packages are installed
+  apt: pkg='$item' state=present
+  with_items:
+    - php5
+    - php5-dev
+    - php-pear
+    - php5-fpm
+    - php5-cli
+    - php5-intl
+    - php5-mysql
+    - php5-gd
+    - php5-mcrypt
+    - php5-curl
+
+- name: Ensure php-fpm log directory exists
+  file: path=/var/log/php-fpm state=directory
+
+- name: Ensure php-fpm is restarted
+  service: name=php5-fpm state=restarted enabled=yes
+
+- name: Ensure php-fpm pools are at the latest version.
+  template: src='$item' dest=/etc/php5/fpm/pool.d/
+  with_fileglob:
+    - ../templates/fpm.d/*
+  notify:
+    - restart php-fpm
+
+- name: Ensure php-fpm pools are at the latest version.
+  copy: src=php.ini dest=/etc/php5/ owner=root group=root
+  notify:
+    - restart php-fpm
+
+- name: Ensure there's only a php.ini not that fragmented bullshit ubuntu comes with
+  file:
+    src=/etc/php5/php.ini
+    dest=/etc/php5/$item/php.ini
+    owner=root group=root state=link
+    force=yes
+  with_items:
+   - fpm
+   - cli
+
+- name: Ensure mysql and mysqli are disabled
+  file: path='$item' state=absent
+  with_items:
+    - /etc/php5/fpm/conf.d/20-mysqli.ini
+    - /etc/php5/fpm/conf.d/20-mysql.ini
+    - /etc/php5/cli/conf.d/20-mysqli.ini
+    - /etc/php5/cli/conf.d/20-mysql.ini
+  notify:
+    - restart php-fpm
+
+- name: Ensure opcache config is correct
+  template: src=mods-available/opcache.ini.j2 dest=/etc/php5/mods-available/opcache.ini
+  notify:
+    - restart php-fpm
+
+- name: Ensure composer is installed
+  shell: curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin && mv /usr/bin/composer.phar /usr/bin/composer creates=/usr/bin/composer
+
+- name: Ensure phpunit is installed
+  shell: wget -O /usr/local/bin/phpunit https://phar.phpunit.de/phpunit.phar && chmod +x /usr/local/bin/phpunit creates=/usr/local/bin/phpunit
+
+- name: Ensure pecl packages are installed
+  php_package: mode=pecl name=$item state=present
+  with_items:
+    - redis
+    - xdebug
